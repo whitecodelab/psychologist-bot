@@ -3,8 +3,9 @@ from contextlib import contextmanager
 from .models import DatabaseManager
 from src.config.settings import settings
 
-# Инициализация базы данных при импорте
+
 db_manager = DatabaseManager(settings.DATABASE_URL)
+
 
 @contextmanager
 def get_db_connection():
@@ -15,18 +16,16 @@ def get_db_connection():
     finally:
         conn.close()
 
+
 def init_database():
-    """Инициализация базы данных с тестовыми данными"""
-    # Добавляем всех администраторов из настроек
+    """Инициализация базы данных"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        for admin_idS in settings.ADMIN_IDS:  # <-- ИСПРАВИЛИ ЗДЕСЬ
+        for admin_id in settings.ADMIN_IDS:
             cursor.execute(
                 'INSERT OR IGNORE INTO admins (telegram_id) VALUES (?)', 
-                (admin_idS,)
+                (admin_id,)
             )
-            print(f"✅ Добавлен администратор: {admin_idS}")
             
         conn.commit()
-    print("✅ База данных инициализирована")

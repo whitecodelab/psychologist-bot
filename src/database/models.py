@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+
 
 class DatabaseManager:
     """Менеджер базы данных"""
@@ -19,7 +19,6 @@ class DatabaseManager:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # Таблица администраторов
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS admins (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +27,6 @@ class DatabaseManager:
                 )
             ''')
             
-            # Таблица с расписанием
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS schedule_slots (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +36,6 @@ class DatabaseManager:
                 )
             ''')
             
-            # Таблица записей
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS appointments (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

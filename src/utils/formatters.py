@@ -1,5 +1,6 @@
 from datetime import datetime
 
+
 def format_datetime(datetime_str: str) -> str:
     """Форматирование даты для красивого отображения"""
     try:
