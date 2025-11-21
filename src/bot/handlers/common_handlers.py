@@ -13,10 +13,10 @@ from src.bot.handlers.admin_handlers import (
     ADDING_SLOT,
     admin_show_appointments,
     admin_delete_slot_start,
-    admin_delete_slot_confirm,
     DELETING_SLOT,
     admin_show_my_slots,
-    admin_show_archive
+    admin_show_archive,
+    admin_delete_slot_choice  # ← ДОБАВИТЬ эту строку
 )
 
 from src.bot.handlers.client_handlers import (
@@ -168,17 +168,17 @@ def setup_handlers():
     )
     application.add_handler(add_slot_conv_handler)
 
-        # ConversationHandler для удаления слотов (админ)
+    # ConversationHandler для удаления слотов (админ)
     delete_slot_conv_handler = ConversationHandler(
         entry_points=[
             MessageHandler(filters.Regex('^🗑️ Удалить слот$'), admin_delete_slot_start)
         ],
         states={
             DELETING_SLOT: [
-                CallbackQueryHandler(admin_delete_slot_confirm, pattern='^(delete_slot_|cancel_deletion)')
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_delete_slot_choice)
             ]
         },
-        fallbacks=[]  # Убираем fallbacks, так как отмена теперь через инлайн-кнопку
+        fallbacks=[MessageHandler(filters.Regex('^❌ Отмена$'), admin_cancel)]
     )
     application.add_handler(delete_slot_conv_handler)
 
@@ -190,6 +190,8 @@ def setup_handlers():
 
     # Обработчик для кнопки "📚 Архив записей"
     application.add_handler(MessageHandler(filters.Regex('^📚 Архив записей$'), admin_show_archive))
+
+    
     
     # Клиент: запись на консультацию
     client_booking_conv_handler = ConversationHandler(

@@ -6,6 +6,8 @@ from src.utils.validators import is_valid_datetime, is_future_datetime
 from src.utils.formatters import format_datetime
 from src.database.schedule_repository import get_available_slots, get_available_slots_for_deletion, delete_available_slot
 from src.database.appointment_repository import get_appointments_for_admin
+from telegram import ReplyKeyboardRemove
+
 
 # Состояния для ConversationHandler
 ADDING_SLOT = 1
@@ -88,7 +90,7 @@ async def admin_add_slot_input(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # ===== УДАЛЕНИЕ СЛОТОВ =====
 async def admin_delete_slot_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Начало диалога удаления слотов с инлайн-кнопкой отмены"""
+    """Начало диалога удаления слотов с Reply-кнопками"""
     user_id = update.effective_user.id
     
     if not settings.is_admin(user_id):
@@ -100,105 +102,70 @@ async def admin_delete_slot_start(update: Update, context: ContextTypes.DEFAULT_
     if not available_slots:
         await update.message.reply_text(
             "😔 Нет свободных слотов для удаления.",
-            reply_markup=get_main_menu_keyboard(is_admin=True)  # ← ТОЛЬКО главное меню
+            reply_markup=get_main_menu_keyboard(is_admin=True)
         )
         return ConversationHandler.END
     
+    # Сохраняем слоты в context
     context.user_data['available_slots_for_deletion'] = available_slots
     
-    keyboard = []
-    for slot in available_slots:
-        formatted_date = format_datetime(slot['datetime'])
-        button = InlineKeyboardButton(formatted_date, callback_data=f"delete_slot_{slot['id']}")
-        keyboard.append([button])
-    
-    # Инлайн-кнопка отмены
-    keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="cancel_deletion")])
+    # Создаем клавиатуру с слотами и отменой
+    from src.bot.keyboards.layouts import get_slots_for_deletion_keyboard
+    slots_keyboard = get_slots_for_deletion_keyboard(available_slots)
     
     await update.message.reply_text(
-        "🗑️ **Выберите слот для удаления:**\n\n"
-        "⚠️ Можно удалять только свободные слоты:",
-        reply_markup=InlineKeyboardMarkup(keyboard),  # ← ТОЛЬКО инлайн-клавиатура
+        "🗑️ **Удаление слотов**\n\n"
+        "⚠️ Можно удалять только свободные слоты.\n"
+        "👇 Выберите слот для удаления:",
+        reply_markup=slots_keyboard,
         parse_mode='Markdown'
     )
     
     return DELETING_SLOT
 
-async def admin_delete_slot_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Подтверждение и удаление выбранного слота"""
-    query = update.callback_query
-    await query.answer()
+async def admin_delete_slot_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка выбора слота для удаления"""
+    user_choice = update.message.text.strip()
     
-    callback_data = query.data
-    print(f"🔍 DEBUG: admin_delete_slot_confirm callback_data={callback_data}")
-
-    if callback_data == "cancel_deletion":
-        # Убираем инлайн-клавиатуру при отмене
-        await query.edit_message_text(
+    if user_choice == '❌ Отмена':
+        await update.message.reply_text(
             "❌ Удаление отменено.",
-            reply_markup=None  # Важно: убираем клавиатуру
+            reply_markup=get_main_menu_keyboard(is_admin=True)
         )
         return ConversationHandler.END
     
-    if callback_data.startswith("delete_slot_"):
-        slot_id = int(callback_data.replace("delete_slot_", ""))
-        print(f"🔍 DEBUG: удаление slot_id={slot_id}")
-        
-        selected_slot = None
-        available_slots = context.user_data.get('available_slots_for_deletion', [])
-        for slot in available_slots:
-            if slot['id'] == slot_id:
-                selected_slot = slot
-                break
-        
-        if selected_slot:
-            print(f"🔍 DEBUG: найден слот для удаления: {selected_slot}")
-            success = delete_available_slot(slot_id)
-            print(f"🔍 DEBUG: delete_available_slot вернула {success}")
-            
-            if success:
-                # Убираем инлайн-клавиатуру после успешного удаления
-                await query.edit_message_text(
-                    f"✅ Слот **{format_datetime(selected_slot['datetime'])}** успешно удален!",
-                    parse_mode='Markdown',
-                    reply_markup=None  # Важно: убираем клавиатуру
-                )
-            else:
-                # Обновляем список слотов (возможно, некоторые уже удалены)
-                available_slots = get_available_slots_for_deletion()
-                if not available_slots:
-                    await query.edit_message_text(
-                        "❌ Не удалось удалить слот. Больше нет доступных слотов для удаления.",
-                        reply_markup=None
-                    )
-                    return ConversationHandler.END
-                
-                # Создаем обновленную клавиатуру
-                keyboard = []
-                for slot in available_slots:
-                    formatted_date = format_datetime(slot['datetime'])
-                    button = InlineKeyboardButton(formatted_date, callback_data=f"delete_slot_{slot['id']}")
-                    keyboard.append([button])
-                
-                keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="cancel_deletion")])
-                
-                await query.edit_message_text(
-                    f"❌ Слот **{format_datetime(selected_slot['datetime'])}** не найден или уже удален.\n\n"
-                    "🗑️ **Выберите слот для удаления:**",
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-                # Обновляем context
-                context.user_data['available_slots_for_deletion'] = available_slots
-                return DELETING_SLOT
-            
-            return ConversationHandler.END
+    # Ищем выбранный слот
+    available_slots = context.user_data.get('available_slots_for_deletion', [])
+    selected_slot = None
     
-    # Если что-то пошло не так - убираем клавиатуру
-    await query.edit_message_text(
-        "❌ Произошла ошибка. Пожалуйста, попробуйте снова.",
-        reply_markup=None
-    )
+    for slot in available_slots:
+        formatted_date = format_datetime(slot['datetime'])
+        if user_choice == formatted_date:
+            selected_slot = slot
+            break
+    
+    if selected_slot:
+        # Удаляем слот
+        success = delete_available_slot(selected_slot['id'])
+        
+        if success:
+            await update.message.reply_text(
+                f"✅ Слот **{format_datetime(selected_slot['datetime'])}** успешно удален!",
+                reply_markup=get_main_menu_keyboard(is_admin=True),
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ Не удалось удалить слот **{format_datetime(selected_slot['datetime'])}**",
+                reply_markup=get_main_menu_keyboard(is_admin=True),
+                parse_mode='Markdown'
+            )
+    else:
+        await update.message.reply_text(
+            "❌ Слот не найден. Пожалуйста, выберите слот из списка.",
+            reply_markup=get_main_menu_keyboard(is_admin=True)
+        )
+    
     return ConversationHandler.END
 
 # ===== ПРОСМОТР ЗАПИСЕЙ =====
@@ -353,3 +320,4 @@ async def admin_show_archive(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode='Markdown',
         reply_markup=get_main_menu_keyboard(is_admin=True)
     )
+
