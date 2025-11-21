@@ -1,14 +1,15 @@
 from .core import get_db_connection
 
 
-def book_appointment(slot_id: int, client_name: str, client_contact: str, client_request: str = "") -> bool:
+def book_appointment(slot_id: int, client_name: str, client_contact: str, 
+                    client_request: str = "", consultation_type: str = "primary") -> bool:
     """Создает запись на консультацию"""
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
             cursor.execute(
-                'SELECT id, is_booked FROM schedule_slots WHERE id = ?',
+                'SELECT id, datetime, is_booked FROM schedule_slots WHERE id = ?',
                 (slot_id,)
             )
             slot = cursor.fetchone()
@@ -18,9 +19,9 @@ def book_appointment(slot_id: int, client_name: str, client_contact: str, client
             
             cursor.execute(
                 '''INSERT INTO appointments 
-                (client_name, client_contact, client_request, slot_id) 
-                VALUES (?, ?, ?, ?)''',
-                (client_name, client_contact, client_request, slot_id)
+                (client_name, client_contact, client_request, slot_id, consultation_type) 
+                VALUES (?, ?, ?, ?, ?)''',
+                (client_name, client_contact, client_request, slot_id, consultation_type)
             )
             
             cursor.execute(

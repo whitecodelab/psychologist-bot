@@ -174,6 +174,7 @@ async def admin_show_appointments(update: Update, context: ContextTypes.DEFAULT_
                 f"📅 {formatted_date}\n"
                 f"📞 {appointment['client_contact']}\n"
                 f"📝 {appointment['client_request']}\n"
+                f"🎯 {'🆕 Первичная' if appointment.get('consultation_type') == 'primary' else '🔄 Повторная'}\n"
                 f"🔄 {status}\n"
                 f"――――――――――――――――――――\n"
             )
@@ -249,6 +250,7 @@ async def admin_show_archive(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 f"📅 {formatted_date}\n"
                 f"📞 {appointment['client_contact']}\n"
                 f"📝 {appointment['client_request']}\n"
+                f"🎯 {'🆕 Первичная' if appointment.get('consultation_type') == 'primary' else '🔄 Повторная'}\n"
                 f"――――――――――――――――――――\n"
             )
         message += f"\n📊 **Всего в архиве:** {len(past_appointments)} записей"

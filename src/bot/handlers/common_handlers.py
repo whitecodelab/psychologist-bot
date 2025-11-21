@@ -18,7 +18,9 @@ from src.bot.handlers.admin_handlers import (
 from src.bot.handlers.client_handlers import (
     client_start_booking, client_choose_slot, client_input_name,
     client_input_contact, client_input_request, client_cancel_booking,
-    CHOOSING_SLOT, TYPING_NAME, TYPING_CONTACT, TYPING_REQUEST
+    client_choose_consultation_type, client_input_therapy_experience, client_input_disorders,
+    CHOOSING_SLOT, CHOOSING_TYPE, TYPING_NAME, TYPING_CONTACT, 
+    TYPING_THERAPY_EXPERIENCE, TYPING_DISORDERS, TYPING_REQUEST
 )
 
 
@@ -132,13 +134,31 @@ def setup_handlers():
     # Клиент: запись на консультацию
     client_booking_conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^📅 Записаться на консультацию$'), client_start_booking)],
-        states={
-            CHOOSING_SLOT: [CallbackQueryHandler(client_choose_slot, pattern='^(book_slot_|cancel_booking)')],
-            TYPING_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_name)],
-            TYPING_CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_contact)],
-            TYPING_REQUEST: [MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_request)]
-        },
-        fallbacks=[MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)]
+            states={
+                    CHOOSING_SLOT: [CallbackQueryHandler(client_choose_slot, pattern='^(book_slot_|cancel_booking)')],
+                    CHOOSING_TYPE: [CallbackQueryHandler(client_choose_consultation_type, pattern='^(consult_type_|cancel_booking)')],
+                    TYPING_NAME: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_name),
+                        MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)
+                    ],
+                    TYPING_CONTACT: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_contact),
+                        MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)
+                    ],
+                    TYPING_THERAPY_EXPERIENCE: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_therapy_experience),
+                        MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)
+                    ],
+                    TYPING_DISORDERS: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_disorders),
+                        MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)
+                    ],
+                    TYPING_REQUEST: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, client_input_request),
+                        MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)
+                    ]
+                },
+                fallbacks=[MessageHandler(filters.Regex('^❌ Отмена$'), client_cancel_booking)]
     )
     application.add_handler(client_booking_conv_handler)
     
@@ -148,5 +168,4 @@ def setup_handlers():
     # Инициализация БД
     init_database()
     
-    print("✅ Обработчики настроены, запуск бота...")
     application.run_polling()

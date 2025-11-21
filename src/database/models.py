@@ -43,6 +43,7 @@ class DatabaseManager:
                     client_contact TEXT NOT NULL,
                     client_request TEXT,
                     slot_id INTEGER NOT NULL,
+                    consultation_type TEXT DEFAULT 'primary',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (slot_id) REFERENCES schedule_slots (id) ON DELETE CASCADE
                 )
